@@ -1,0 +1,15 @@
+meu_projeto/
+│── .env
+│── main.py
+│── requirements.txt
+│── setup.py        # configuração do cx_Freeze
+│
+├── app/
+│   │── __init__.py
+│   │── ui.py       # telas Tkinter
+│   │── utils.py    # funções auxiliares (ex.: leitura do .env, logs)
+│   │── logic.py    # regras de negócio
+│
+└── assets/
+    └── icon.ico    # opcional para o executável
+

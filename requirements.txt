@@ -1,0 +1,4 @@
+python-dotenv
+cx-Freeze
+pandas
+openpyxl
