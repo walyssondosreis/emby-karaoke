@@ -50,47 +50,69 @@ def desenhar_ondas(draw_obj, largura, altura, cor_onda, num_ondas=5, intensidade
             pontos_preenchimento = [(0, altura)] + pontos + [(largura, altura)]
             draw_obj.polygon(pontos_preenchimento, fill=cor_onda_rgba)
 
-def texto_quebrado_simples(draw_obj, texto, fonte, max_largura, max_linhas=3):
-    """Quebra texto apenas entre palavras completas, sem quebrar palavras com hífen."""
+def texto_quebrado_avancado(draw_obj, texto, fonte, max_largura, max_linhas=3):
+    """Quebra texto de forma mais inteligente, considerando hífens e priorizando palavras completas."""
     palavras = texto.split()
     linhas = []
     linha_atual = ""
     
     for palavra in palavras:
         teste_linha = linha_atual + (" " if linha_atual else "") + palavra
-        bbox_teste = draw_obj.textbbox((0, 0), teste_linha, font=fonte)
-        largura_teste = bbox_teste[2] - bbox_teste[0]
         
-        if largura_teste <= max_largura:
-            linha_atual = teste_linha
+        # Verifica se a palavra é muito longa para caber sozinha
+        bbox_palavra = draw_obj.textbbox((0, 0), palavra, font=fonte)
+        largura_palavra = bbox_palavra[2] - bbox_palavra[0]
+        
+        if largura_palavra > max_largura and len(palavra) > 10:
+            # Quebra palavras muito longas com hífen
+            partes = []
+            parte_atual = ""
+            for char in palavra:
+                teste_parte = parte_atual + char
+                bbox_teste = draw_obj.textbbox((0, 0), teste_parte, font=fonte)
+                if bbox_teste[2] - bbox_teste[0] > max_largura * 0.8 and parte_atual:
+                    partes.append(parte_atual + "-")
+                    parte_atual = char
+                else:
+                    parte_atual = teste_parte
+            if parte_atual:
+                partes.append(parte_atual)
+            
+            for parte in partes:
+                if linha_atual:
+                    teste_com_linha = linha_atual + " " + parte
+                else:
+                    teste_com_linha = parte
+                
+                bbox_teste = draw_obj.textbbox((0, 0), teste_com_linha, font=fonte)
+                if bbox_teste[2] - bbox_teste[0] <= max_largura:
+                    linha_atual = teste_com_linha
+                else:
+                    if linha_atual:
+                        linhas.append(linha_atual)
+                    linha_atual = parte
         else:
-            # Se a linha atual já tem conteúdo, salva e começa nova linha
-            if linha_atual:
-                linhas.append(linha_atual)
-            # Verifica se a palavra sozinha cabe na linha
-            bbox_palavra = draw_obj.textbbox((0, 0), palavra, font=fonte)
-            largura_palavra = bbox_palavra[2] - bbox_palavra[0]
-            if largura_palavra <= max_largura:
-                linha_atual = palavra
+            # Comportamento normal para palavras que cabem
+            bbox_teste = draw_obj.textbbox((0, 0), teste_linha, font=fonte)
+            if bbox_teste[2] - bbox_teste[0] <= max_largura:
+                linha_atual = teste_linha
             else:
-                # Palavra muito longa - força na linha atual e diminui fonte depois
-                linha_atual = palavra
-                if len(linhas) < max_linhas - 1:
+                if linha_atual:
                     linhas.append(linha_atual)
-                    linha_atual = ""
+                linha_atual = palavra
     
     if linha_atual and len(linhas) < max_linhas:
         linhas.append(linha_atual)
     
     return linhas
 
-def calcular_tamanho_fonte_ideal(draw_obj, texto, fonte_base, max_largura, max_altura, tamanho_minimo=60, tamanho_maximo=160):
+def calcular_tamanho_fonte_ideal(draw_obj, texto, fonte_base, max_largura, max_altura, tamanho_minimo=60):
     """Calcula o tamanho de fonte ideal para o texto caber na área disponível."""
-    tamanho_fonte = tamanho_maximo
+    tamanho_fonte = 160
     fonte = ImageFont.truetype(fonte_base, tamanho_fonte)
     
     while tamanho_fonte >= tamanho_minimo:
-        linhas = texto_quebrado_simples(draw_obj, texto, fonte, max_largura)
+        linhas = texto_quebrado_avancado(draw_obj, texto, fonte, max_largura)
         
         # Calcula altura total do texto
         altura_total = 0
@@ -106,7 +128,7 @@ def calcular_tamanho_fonte_ideal(draw_obj, texto, fonte_base, max_largura, max_a
         if altura_total <= max_altura and len(linhas) <= 3:
             break
         
-        tamanho_fonte -= 2  # Diminui mais devagar para ajuste mais suave
+        tamanho_fonte -= 5
         fonte = ImageFont.truetype(fonte_base, tamanho_fonte)
     
     return max(tamanho_fonte, tamanho_minimo), linhas
@@ -188,7 +210,7 @@ def gerar_capa(nome_arquivo, pasta_base, titulo=None, artista=None, log_callback
     # --- AJUSTE DINÂMICO DO TÍTULO ---
     if fonte_musica_base:
         tamanho_fonte_titulo, linhas_titulo = calcular_tamanho_fonte_ideal(
-            draw, titulo, fonte_musica_base, max_largura, max_altura_disponivel - 100, 60, 160
+            draw, titulo, fonte_musica_base, max_largura, max_altura_disponivel - 100, 60
         )
         fonte_musica = ImageFont.truetype(fonte_musica_base, tamanho_fonte_titulo)
     else:
@@ -196,21 +218,12 @@ def gerar_capa(nome_arquivo, pasta_base, titulo=None, artista=None, log_callback
         fonte_musica = ImageFont.load_default()
         linhas_titulo = [titulo]
 
-    # --- AJUSTE DINÂMICO DO ARTISTA (UM POUCO MENOR QUE O TÍTULO) ---
-    # Define o tamanho máximo do artista como 80% do tamanho do título ou 70px, o que for menor
-    tamanho_max_artista = max(int(tamanho_fonte_titulo * 0.8), 70) if fonte_musica_base else 70
-    
-    if fonte_musica_base:
-        tamanho_fonte_artista, linhas_artista = calcular_tamanho_fonte_ideal(
-            draw, artista, FONT_ARTISTA_REGULAR, max_largura, 100, 40, tamanho_max_artista
-        )
-        fonte_artista = ImageFont.truetype(FONT_ARTISTA_REGULAR, tamanho_fonte_artista)
-    else:
-        linhas_artista = texto_quebrado_simples(draw, artista, fonte_artista, max_largura, max_linhas=2)
-
     # Texto "KARAOKÊ" sempre no topo
     w_topo = draw.textbbox((0, 0), "KARAOKÊ", font=fonte_karaoke)[2]
     draw.text(((largura - w_topo) / 2, 40), "KARAOKÊ", font=fonte_karaoke, fill="white")
+
+    # Quebra texto do artista
+    linhas_artista = texto_quebrado_avancado(draw, artista, fonte_artista, max_largura, max_linhas=2)
 
     # --- CALCULAR POSIÇÃO VERTICAL CENTRALIZADA ---
     # Calcular altura total do conteúdo
@@ -222,7 +235,7 @@ def gerar_capa(nome_arquivo, pasta_base, titulo=None, artista=None, log_callback
         altura_linha = bbox[3] - bbox[1]
         altura_total_conteudo += altura_linha
     
-    # ESPAÇAMENTO ENTRE TÍTULO E ARTISTA
+    # AUMENTEI O ESPAÇAMENTO ENTRE TÍTULO E ARTISTA (de 30 para 60)
     espacamento_titulo_artista = 60
     altura_total_conteudo += espacamento_titulo_artista
     
@@ -249,8 +262,8 @@ def gerar_capa(nome_arquivo, pasta_base, titulo=None, artista=None, log_callback
         draw.text((x, y_atual), linha, font=fonte_musica, fill="yellow")
         y_atual += h
 
-    # --- DESENHAR ARTISTA CENTRALIZADO ---
-    y_atual += espacamento_titulo_artista
+    # --- DESENHAR ARTISTA CENTRALIZADO (COM MAIS ESPAÇO) ---
+    y_atual += espacamento_titulo_artista  # Agora com 60px de espaçamento
     for linha in linhas_artista:
         bbox = draw.textbbox((0, 0), linha, font=fonte_artista)
         w = bbox[2] - bbox[0]

@@ -29,7 +29,7 @@ def renomear_arquivo_antigo(orig_path, novo_path, log_callback=None):
             if log_callback:
                 log_callback(f"Renomeado relacionado: {rel_orig} -> {rel_novo}")
 
-def run(log_callback=None, pasta_videos="Karaoke", arquivo_xlsx="assets/Songs.xls"):
+def run(log_callback=None, pasta_videos="Karaoke", arquivo_xlsx="assets/karaoke.xlsx"):
     agora = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_file = os.path.join(LOG_DIR, f"karaoke_normalizar_nomes_{agora}.log")
 
