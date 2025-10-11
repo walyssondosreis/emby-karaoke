@@ -1,3 +1,8 @@
+# Dependências do sistema necessárias para o script gerar_video:
+# - FFmpeg (deve estar no PATH ou em C:\ffmpeg\bin no Windows)
+
+Pillow>=10.0.0
+numpy>=1.21.0
 python-dotenv
 cx-Freeze
 pandas

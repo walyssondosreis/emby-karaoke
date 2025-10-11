@@ -41,9 +41,12 @@ Thumbs.db
 *.swo
 
 # Ambiente virtual
-venv/
-env/
-ENV/
+pvenv/
 
 # Arquivos do Windows
 *.ini
+
+# Outros
+.env
+Output/
+emby-karaoke.code-workspace
