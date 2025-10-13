@@ -297,7 +297,7 @@ class MainApp:
         grid_frame = tk.Frame(commands_frame, bg=self.colors['lighter'])
         grid_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Linhas de botões (3 por linha)
+        # Linhas de botões
         button_frame1 = tk.Frame(grid_frame, bg=self.colors['lighter'])
         button_frame1.pack(fill=tk.X, pady=3)
         
@@ -341,11 +341,11 @@ class MainApp:
         )
         utilities_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 0))
 
-        # Frame para organizar os botões em grid (3 por linha)
+        # Frame para organizar os botões em grid
         grid_frame = tk.Frame(utilities_frame, bg=self.colors['lighter'])
         grid_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Linhas de botões (3 por linha)
+        # Linhas de botões
         button_frame1 = tk.Frame(grid_frame, bg=self.colors['lighter'])
         button_frame1.pack(fill=tk.X, pady=3)
         
@@ -356,14 +356,13 @@ class MainApp:
         btn_style = self.get_button_style('secondary')
         btn_style['width'] = 16  # Tamanho fixo
 
-        # Linha 1: Enviar Songs.xlsx, Abrir Output, Abrir Logs
+        # Linha 1: Enviar Songs.xlsx, Abrir Output
         tk.Button(button_frame1, text="📤 Enviar Songs.xlsx", command=self.enviar_songs_xlsx, **btn_style).pack(side=tk.LEFT, padx=2)
         tk.Button(button_frame1, text="📁 Abrir Output", command=self.abrir_pasta_output, **btn_style).pack(side=tk.LEFT, padx=2)
-        tk.Button(button_frame1, text="📂 Abrir Logs", command=self.abrir_logs, **btn_style).pack(side=tk.LEFT, padx=2)
 
-        # Linha 2: Abrir Imagens, Enviar Karaoke
+        # Linha 2: Abrir Logs, Abrir Imagens
+        tk.Button(button_frame2, text="📂 Abrir Logs", command=self.abrir_logs, **btn_style).pack(side=tk.LEFT, padx=2)
         tk.Button(button_frame2, text="🖼️ Abrir Imagens", command=self.abrir_pasta_imagens, **btn_style).pack(side=tk.LEFT, padx=2)
-        tk.Button(button_frame2, text="🚀 Enviar Karaoke", command=self.enviar_karaoke, **btn_style).pack(side=tk.LEFT, padx=2)
 
     def create_log_section(self, parent):
         log_frame = tk.LabelFrame(
@@ -425,128 +424,6 @@ class MainApp:
             'bd': 0
         }
 
-    # ========== FUNÇÃO CORRIGIDA: VERIFICAR SE VÍDEO JÁ EXISTE ==========
-
-    def normalizar_nome_arquivo(self, nome):
-        """Normaliza o nome do arquivo para comparação robusta"""
-        if not nome:
-            return ""
-        
-        # Converter para minúsculas
-        nome = nome.lower()
-        
-        # Substituir caracteres problemáticos
-        nome = nome.replace('&', 'e')
-        nome = nome.replace('  ', ' ')
-        nome = nome.replace('_', ' ')
-        nome = nome.replace('-', ' ')
-        
-        # Remover espaços extras e caracteres especiais
-        nome = ''.join(c for c in nome if c.isalnum() or c in (' ', '-', '_'))
-        nome = ' '.join(nome.split())  # Remove espaços múltiplos
-        nome = nome.strip()
-        
-        return nome
-
-    def verificar_se_video_ja_existe(self, nome_arquivo, pasta_karaoke):
-        """Verifica se o vídeo já existe na pasta karaoke (em qualquer subpasta) OU na pasta Output"""
-        try:
-            # Normalizar o nome do arquivo
-            nome_normalizado = self.normalizar_nome_arquivo(nome_arquivo)
-            
-            # Verificar na pasta Karaoke e subpastas
-            for root_dir, _, files in os.walk(pasta_karaoke):
-                for arquivo in files:
-                    # Verificar apenas arquivos de vídeo
-                    if not arquivo.lower().endswith(('.mp4', '.avi', '.mkv', '.mov')):
-                        continue
-                    
-                    nome_sem_extensao = os.path.splitext(arquivo)[0]
-                    nome_arquivo_normalizado = self.normalizar_nome_arquivo(nome_sem_extensao)
-                    
-                    # Múltiplas estratégias de comparação
-                    if (nome_normalizado == nome_arquivo_normalizado or
-                        nome_normalizado in nome_arquivo_normalizado or
-                        nome_arquivo_normalizado in nome_normalizado):
-                        
-                        return os.path.join(root_dir, arquivo)
-            
-            # Verificar também na pasta Output
-            pasta_output = os.path.join(BASE_DIR, "Output")
-            if os.path.exists(pasta_output):
-                for arquivo in os.listdir(pasta_output):
-                    if not arquivo.lower().endswith(('.mp4', '.avi', '.mkv', '.mov')):
-                        continue
-                    
-                    nome_sem_extensao = os.path.splitext(arquivo)[0]
-                    nome_arquivo_normalizado = self.normalizar_nome_arquivo(nome_sem_extensao)
-                    
-                    # Múltiplas estratégias de comparação
-                    if (nome_normalizado == nome_arquivo_normalizado or
-                        nome_normalizado in nome_arquivo_normalizado or
-                        nome_arquivo_normalizado in nome_normalizado):
-                        
-                        return os.path.join(pasta_output, arquivo)
-            
-            return None
-            
-        except Exception as e:
-            self.log(f"❌ Erro ao verificar vídeo: {e}")
-            return None
-
-    # ========== FUNÇÃO AJUSTADA: EXECUTAR GERAR VIDEO SEM JANELAS ==========
-
-    def executar_gerar_video_com_progresso(self, comando, projeto, log_filepath):
-        """Executa o comando e captura o progresso em tempo real"""
-        try:
-            env = os.environ.copy()
-            env['PYTHONIOENCODING'] = 'utf-8'
-            env['PYTHONUTF8'] = '1'
-            
-            # Configuração para evitar janelas do terminal no Windows (APENAS PARA FFMPEG)
-            startupinfo = None
-            if os.name == 'nt':  # Windows
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                startupinfo.wShowWindow = 0  # SW_HIDE - esconde a janela
-            
-            processo = subprocess.Popen(
-                comando,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                encoding='utf-8',
-                errors='ignore',
-                cwd=BASE_DIR,
-                env=env,
-                bufsize=1,
-                universal_newlines=True,
-                startupinfo=startupinfo  # MANTIDO APENAS AQUI PARA FFMPEG
-            )
-            
-            while True:
-                linha = processo.stdout.readline()
-                if not linha and processo.poll() is not None:
-                    break
-                
-                if linha:
-                    linha = linha.strip()
-                    if linha:
-                        if any(palavra in linha for palavra in ['Rolagem:', 'Finalizando...', '✅ Vídeo com Rolagem', '📤 Finalizando']):
-                            self.log(f"   📊 {linha}")
-                        elif any(palavra in linha for palavra in ['🚀 Gerador de Karaokê', '📺 Resolução:', '🎵 Música:', '🎤 Artista:', '⏱️  Duração:']):
-                            self.log(f"   ℹ️  {linha}")
-                        elif '❌' in linha or 'Erro:' in linha or 'Traceback' in linha:
-                            self.log(f"   {linha}")
-            
-            returncode = processo.wait()
-            return returncode, ""
-            
-        except Exception as e:
-            return 1, f"Erro ao executar processo: {str(e)}"
-
-    # ========== FUNÇÕES CORRIGIDAS: EXPLORER FUNCIONANDO ==========
-
     def abrir_pasta_explorer(self, caminho):
         """Abre uma pasta no explorador de arquivos"""
         if not caminho:
@@ -568,7 +445,6 @@ class MainApp:
                 return
         
         try:
-            # SEM startupinfo para o Explorer funcionar normalmente
             if os.name == 'nt':  # Windows
                 subprocess.Popen(f'explorer "{caminho}"')
             else:  # Linux/Mac
@@ -577,6 +453,14 @@ class MainApp:
         except Exception as e:
             self.log(f"❌ Erro ao abrir pasta: {e}")
             messagebox.showerror("Erro", f"Não foi possível abrir a pasta: {e}")
+
+    # ========== FUNÇÕES EXISTENTES (mantidas inalteradas) ==========
+
+    def log(self, mensagem):
+        self.txt_log.config(state="normal")
+        self.txt_log.insert(tk.END, mensagem + "\n")
+        self.txt_log.see(tk.END)
+        self.txt_log.config(state="disabled")
 
     def abrir_pasta_output(self):
         """Abre a pasta Output onde os vídeos são gerados"""
@@ -587,7 +471,6 @@ class MainApp:
             self.log(f"📁 Pasta Output criada: {output_path}")
 
         try:
-            # SEM startupinfo para o Explorer funcionar normalmente
             if os.name == 'nt':  # Windows
                 subprocess.Popen(f'explorer "{output_path}"')
             else:  # Linux/Mac
@@ -605,7 +488,6 @@ class MainApp:
             self.log(f"📁 Pasta de imagens criada: {imagens_path}")
 
         try:
-            # SEM startupinfo para o Explorer funcionar normalmente
             if os.name == 'nt':  # Windows
                 subprocess.Popen(f'explorer "{imagens_path}"')
             else:  # Linux/Mac
@@ -613,186 +495,6 @@ class MainApp:
             self.log(f"🖼️ Abrindo pasta de imagens: {imagens_path}")
         except Exception as e:
             self.log(f"❌ Erro ao abrir pasta de imagens: {e}")
-
-    def abrir_logs(self):
-        raiz_projeto = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        logs_path = os.path.join(raiz_projeto, 'logs')
-
-        if not os.path.exists(logs_path):
-            os.makedirs(logs_path)
-
-        try:
-            # SEM startupinfo para o Explorer funcionar normalmente
-            if os.name == 'nt':  # Windows
-                subprocess.Popen(f'explorer "{logs_path}"')
-            else:  # Linux/Mac
-                subprocess.Popen(['xdg-open', logs_path])
-            self.log(f"📂 Abrindo pasta de logs: {logs_path}")
-        except Exception as e:
-            self.log(f"❌ Erro ao abrir pasta de logs: {e}")
-
-    # ========== NOVA FUNÇÃO: ENVIAR KARAOKE ==========
-
-    def enviar_karaoke(self):
-        """Envia os vídeos da pasta Output para a pasta Karaoke"""
-        pasta_output = os.path.join(BASE_DIR, "Output")
-        pasta_karaoke = self.pasta_var.get()
-        
-        if not pasta_karaoke:
-            messagebox.showerror("Erro", "Selecione a pasta de karaokê.")
-            return
-        
-        if not os.path.exists(pasta_output):
-            self.log("❌ Pasta Output não encontrada.")
-            messagebox.showerror("Erro", "Pasta Output não encontrada.")
-            return
-        
-        # Configurar sistema de log em arquivo
-        raiz_projeto = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        logs_path = os.path.join(raiz_projeto, 'logs')
-        
-        if not os.path.exists(logs_path):
-            os.makedirs(logs_path)
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_filename = f"enviar_karaoke_{timestamp}.log"
-        log_filepath = os.path.join(logs_path, log_filename)
-        
-        # Iniciar log
-        with open(log_filepath, 'w', encoding='utf-8') as f:
-            f.write(f"🚀 Iniciando envio de karaokê - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write(f"   📁 Pasta Output: {pasta_output}\n")
-            f.write(f"   📁 Pasta Karaoke: {pasta_karaoke}\n\n")
-        
-        self.log(f"🚀 Iniciando envio de karaokê - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        self.log(f"   📁 Pasta Output: {pasta_output}")
-        self.log(f"   📁 Pasta Karaoke: {pasta_karaoke}")
-        self.log(f"   📄 Log: {log_filename}")
-        
-        # Executar em thread separada
-        thread = threading.Thread(
-            target=self.executar_enviar_karaoke_thread,
-            args=(pasta_output, pasta_karaoke, log_filepath)
-        )
-        thread.daemon = True
-        thread.start()
-
-    def executar_enviar_karaoke_thread(self, pasta_output, pasta_karaoke, log_filepath):
-        """Executa o envio de karaokê em thread separada"""
-        try:
-            videos_enviados = []
-            erros = 0
-            
-            # Verificar se a pasta Output existe
-            if not os.path.exists(pasta_output):
-                self.log("❌ Pasta Output não encontrada.")
-                with open(log_filepath, 'a', encoding='utf-8') as f:
-                    f.write("❌ Pasta Output não encontrada.\n")
-                return
-            
-            # Listar arquivos de vídeo na pasta Output
-            arquivos_video = []
-            for arquivo in os.listdir(pasta_output):
-                if arquivo.lower().endswith(('.mp4', '.avi', '.mkv', '.mov')):
-                    arquivos_video.append(arquivo)
-            
-            if not arquivos_video:
-                self.log("📭 Nenhum vídeo encontrado na pasta Output.")
-                with open(log_filepath, 'a', encoding='utf-8') as f:
-                    f.write("📭 Nenhum vídeo encontrado na pasta Output.\n")
-                return
-            
-            self.log(f"📋 Total de vídeos encontrados: {len(arquivos_video)}")
-            with open(log_filepath, 'a', encoding='utf-8') as f:
-                f.write(f"📋 Total de vídeos encontrados: {len(arquivos_video)}\n")
-            
-            # Criar pasta karaoke se não existir
-            if not os.path.exists(pasta_karaoke):
-                try:
-                    os.makedirs(pasta_karaoke)
-                    self.log(f"📁 Pasta karaoke criada: {pasta_karaoke}")
-                    with open(log_filepath, 'a', encoding='utf-8') as f:
-                        f.write(f"📁 Pasta karaoke criada: {pasta_karaoke}\n")
-                except Exception as e:
-                    self.log(f"❌ Erro ao criar pasta karaoke: {e}")
-                    with open(log_filepath, 'a', encoding='utf-8') as f:
-                        f.write(f"❌ Erro ao criar pasta karaoke: {e}\n")
-                    return
-            
-            # Processar cada vídeo
-            for i, arquivo in enumerate(arquivos_video, 1):
-                caminho_origem = os.path.join(pasta_output, arquivo)
-                caminho_destino = os.path.join(pasta_karaoke, arquivo)
-                
-                self.log(f"📦 Processando ({i}/{len(arquivos_video)}): {arquivo}")
-                with open(log_filepath, 'a', encoding='utf-8') as f:
-                    f.write(f"📦 Processando ({i}/{len(arquivos_video)}): {arquivo}\n")
-                
-                try:
-                    # Verificar se o arquivo já existe no destino
-                    if os.path.exists(caminho_destino):
-                        self.log(f"   ⚠️  Arquivo já existe: {arquivo}")
-                        with open(log_filepath, 'a', encoding='utf-8') as f:
-                            f.write(f"   ⚠️  Arquivo já existe: {arquivo}\n")
-                        continue
-                    
-                    # Copiar arquivo
-                    shutil.copy2(caminho_origem, caminho_destino)
-                    
-                    # Verificar se a cópia foi bem sucedida
-                    if os.path.exists(caminho_destino):
-                        videos_enviados.append(arquivo)
-                        self.log(f"   ✅ Enviado: {arquivo}")
-                        with open(log_filepath, 'a', encoding='utf-8') as f:
-                            f.write(f"   ✅ Enviado: {arquivo}\n")
-                    else:
-                        erros += 1
-                        self.log(f"   ❌ Falha ao enviar: {arquivo}")
-                        with open(log_filepath, 'a', encoding='utf-8') as f:
-                            f.write(f"   ❌ Falha ao enviar: {arquivo}\n")
-                            
-                except Exception as e:
-                    erros += 1
-                    self.log(f"   ❌ Erro ao processar {arquivo}: {str(e)}")
-                    with open(log_filepath, 'a', encoding='utf-8') as f:
-                        f.write(f"   ❌ Erro ao processar {arquivo}: {str(e)}\n")
-            
-            # Resumo final
-            self.log(f"\n📊 RESUMO DO ENVIO:")
-            self.log(f"   ✅ Vídeos enviados: {len(videos_enviados)}")
-            self.log(f"   ❌ Erros: {erros}")
-            
-            if videos_enviados:
-                self.log(f"\n🎬 VÍDEOS ENVIADOS:")
-                for video in videos_enviados:
-                    self.log(f"   📹 {video}")
-            
-            # Log resumo no arquivo
-            with open(log_filepath, 'a', encoding='utf-8') as f:
-                f.write(f"\n📊 RESUMO DO ENVIO:\n")
-                f.write(f"   ✅ Vídeos enviados: {len(videos_enviados)}\n")
-                f.write(f"   ❌ Erros: {erros}\n")
-                f.write(f"⏰ Finalizado em: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                
-                if videos_enviados:
-                    f.write(f"\n🎬 VÍDEOS ENVIADOS:\n")
-                    for video in videos_enviados:
-                        f.write(f"   📹 {video}\n")
-            
-            self.log(f"🎯 Envio de karaokê finalizado")
-                
-        except Exception as e:
-            self.log(f"❌ Erro inesperado: {str(e)}")
-            with open(log_filepath, 'a', encoding='utf-8') as f:
-                f.write(f"❌ Erro inesperado: {str(e)}\n")
-
-    # ========== FUNÇÕES EXISTENTES ==========
-
-    def log(self, mensagem):
-        self.txt_log.config(state="normal")
-        self.txt_log.insert(tk.END, mensagem + "\n")
-        self.txt_log.see(tk.END)
-        self.txt_log.config(state="disabled")
 
     def enviar_songs_xlsx(self):
         """Permite ao usuário enviar uma nova planilha Songs.xlsx"""
@@ -847,6 +549,15 @@ class MainApp:
             self.pasta_stems_var.set(pasta)
             self.log(f"📁 Pasta Stems selecionada: {pasta}")
 
+    def verificar_se_video_ja_existe(self, nome_arquivo, pasta_karaoke):
+        """Verifica se o vídeo já existe na pasta karaoke (em qualquer subpasta)"""
+        for root_dir, _, files in os.walk(pasta_karaoke):
+            for arquivo in files:
+                nome_sem_extensao = os.path.splitext(arquivo)[0]
+                if nome_sem_extensao == nome_arquivo:
+                    return os.path.join(root_dir, arquivo)
+        return None
+
     def encontrar_imagem_artista(self, nome_artista):
         """Encontra imagem do artista na pasta assets/__artist"""
         pasta_artistas = os.path.join(BASE_DIR, "assets", "__artist")
@@ -856,7 +567,7 @@ class MainApp:
         
         artista = nome_artista.split(" - ")[0].strip()
         
-        extensoes = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.webp','avif']
+        extensoes = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.webp']
         
         for ext in extensoes:
             caminho_imagem = os.path.join(pasta_artistas, f"{artista}{ext}")
@@ -914,6 +625,47 @@ class MainApp:
                     self.log(f"   ❌ Ultrastar.txt não encontrado em: {artista_titulo}")
         
         return projetos_validos
+
+    def executar_gerar_video_com_progresso(self, comando, projeto, log_filepath):
+        """Executa o comando e captura o progresso em tempo real"""
+        try:
+            env = os.environ.copy()
+            env['PYTHONIOENCODING'] = 'utf-8'
+            env['PYTHONUTF8'] = '1'
+            
+            processo = subprocess.Popen(
+                comando,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding='utf-8',
+                errors='ignore',
+                cwd=BASE_DIR,
+                env=env,
+                bufsize=1,
+                universal_newlines=True
+            )
+            
+            while True:
+                linha = processo.stdout.readline()
+                if not linha and processo.poll() is not None:
+                    break
+                
+                if linha:
+                    linha = linha.strip()
+                    if linha:
+                        if any(palavra in linha for palavra in ['Rolagem:', 'Finalizando...', '✅ Vídeo com Rolagem', '📤 Finalizando']):
+                            self.log(f"   📊 {linha}")
+                        elif any(palavra in linha for palavra in ['🚀 Gerador de Karaokê', '📺 Resolução:', '🎵 Música:', '🎤 Artista:', '⏱️  Duração:']):
+                            self.log(f"   ℹ️  {linha}")
+                        elif '❌' in linha or 'Erro:' in linha or 'Traceback' in linha:
+                            self.log(f"   {linha}")
+            
+            returncode = processo.wait()
+            return returncode, ""
+            
+        except Exception as e:
+            return 1, f"Erro ao executar processo: {str(e)}"
 
     def executar_gerar_video_thread(self, projetos_para_gerar, log_filepath):
         """Executa a geração de vídeos em thread separada"""
@@ -1199,6 +951,22 @@ class MainApp:
                 except Exception as e:
                     self.log(f"   ⚠️  Erro ao excluir {f}: {e}")
             self.log(f"🗑️ {len(nfos)} arquivos .nfo excluídos em subpastas.")
+
+    def abrir_logs(self):
+        raiz_projeto = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        logs_path = os.path.join(raiz_projeto, 'logs')
+
+        if not os.path.exists(logs_path):
+            os.makedirs(logs_path)
+
+        try:
+            if os.name == 'nt':  # Windows
+                subprocess.Popen(f'explorer "{logs_path}"')
+            else:  # Linux/Mac
+                subprocess.Popen(['xdg-open', logs_path])
+            self.log(f"📂 Abrindo pasta de logs: {logs_path}")
+        except Exception as e:
+            self.log(f"❌ Erro ao abrir pasta de logs: {e}")
 
 if __name__ == "__main__":
     root = tk.Tk()

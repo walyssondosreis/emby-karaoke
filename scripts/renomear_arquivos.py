@@ -91,7 +91,7 @@ def run(log_callback=None, pasta_videos="Karaoke", arquivo_xlsx="Songs.xls"):
         
         if not fulltitle:
             if log_callback:
-                log_callback(f"Linha {i}: Sem full_title para music_id {music_id}, ignorando...")
+                 log_callback(f"Linha {i}: Sem full_title para music_id {music_id}, ignorando...")
             continue
 
         # Verifica se o fulltitle é uma fórmula não calculada

@@ -651,8 +651,8 @@ class ScrollingKaraokeGenerator:
             
             # CORREÇÃO: Iniciar transição ANTES para terminar no tempo certo
             # A transição de rolagem precisa terminar LEVEMENTE antes do áudio começar
-            transition_duration = 0.7  # 700ms para rolagem bem visível e suave
-            anticipation = 0.25  # 250ms de antecipação extra (a linha fica pronta antes)
+            transition_duration = 0.6  # 500ms para rolagem suave
+            anticipation = 0.3  # 150ms de antecipação extra (a linha fica pronta antes)
             transition_start = max(4, line_start - transition_duration - anticipation)
             
             scroll_moments.append({
@@ -723,17 +723,19 @@ class ScrollingKaraokeGenerator:
             transition_duration = moment.get('transition_duration', 0.5)
             line_actual_start = moment.get('line_actual_start', moment['start_time'])
             
-            # Progresso: 0 = início da transição (tudo embaixo), 1 = transição completa
+            # Progresso: 0 = início da transição (tudo embaixo), 1 = linha no topo (pronta para cantar)
             time_in_transition = timestamp - moment['start_time']
             transition_progress = min(1.0, time_in_transition / transition_duration)
             
-            # EFEITO DE ROLAGEM CONTÍNUO: As linhas sobem gradualmente em TODAS as frases
-            # Durante a transição (0 a transition_duration): movimento de rolagem
-            # Após transição: linha fica estável na posição final
+            # IMPORTANTE: Quando transition_progress = 1.0, a linha está em posição final
+            # e pronta para ser cantada no tempo exato do áudio
             
+            # EFEITO DE ROLAGEM SUAVE: As linhas sobem gradualmente
+            # No início (progress=0): scroll_offset = 200 (tudo mais embaixo)
+            # No fim (progress=1): scroll_offset = 0 (posições finais)
             # Usando função de easing suave (ease-out) para movimento mais natural
             ease_progress = 1 - math.pow(1 - transition_progress, 3)  # Cubic ease-out
-            scroll_offset = int((1 - ease_progress) * 250)  # Sobe 250px para ser mais visível
+            scroll_offset = int((1 - ease_progress) * 200)  # Sobe suavemente 200px
             
             # PRÉ-RENDERIZAR todas as imagens para calcular alturas
             previous_img = None
@@ -762,40 +764,39 @@ class ScrollingKaraokeGenerator:
             # Altura da linha principal (pode ocupar múltiplas linhas)
             main_height = main_img.height if main_img else 0
             
-            # LINHA ANTERIOR (acima, cinza claro, fade-out progressivo durante rolagem)
+            # LINHA ANTERIOR (acima, cinza claro, fade-out progressivo)
             if previous_img:
                 # Fade-out suave e progressivo quando nova linha entra
-                # Mantém visível durante mais tempo para continuidade visual
-                alpha_previous = max(0.4, 1.0 - (transition_progress * 0.6))
+                alpha_previous = max(0.3, 1.0 - (transition_progress * 0.7))
                 previous_img = self.apply_fade_transition(previous_img, alpha_previous)
                 
                 x = (self.width - previous_img.width) // 2
-                y = self.pos_previous + scroll_offset  # Sobe suavemente COM rolagem visível
+                y = self.pos_previous + scroll_offset  # Sobe suavemente
                 y = max(50, min(y, self.height - previous_img.height - 50))
                 frame.paste(previous_img, (x, y), previous_img)
             
-            # LINHA ATUAL (centro, branca, destaque MÁXIMO com fade-in suave durante rolagem)
+            # LINHA ATUAL (centro, branca, destaque MÁXIMO com fade-in suave)
             if main_img:
-                # Fade-in suave e gradual durante toda a transição
-                alpha_main = min(1.0, transition_progress * 1.8)
+                # Fade-in suave e gradual
+                alpha_main = min(1.0, transition_progress * 1.5)
                 main_img = self.apply_fade_transition(main_img, alpha_main)
                 
                 x = (self.width - main_img.width) // 2
-                y = self.pos_main + scroll_offset  # Sobe suavemente COM rolagem visível
+                y = self.pos_main + scroll_offset  # Sobe suavemente
                 y = max(150, min(y, self.height - main_img.height - 150))
                 frame.paste(main_img, (x, y), main_img)
             
-            # PRÓXIMA LINHA (abaixo, cinza escuro, preview com fade-in durante rolagem)
+            # PRÓXIMA LINHA (abaixo, cinza escuro, preview com fade-in)
             if preview_img:
-                # Fade-in progressivo para dar preview da próxima linha
-                alpha_preview = min(0.85, transition_progress * 0.85)
+                # Fade-in muito suave e progressivo
+                alpha_preview = min(0.8, transition_progress * 0.8)
                 preview_img = self.apply_fade_transition(preview_img, alpha_preview)
                 
                 x = (self.width - preview_img.width) // 2
                 
                 # POSIÇÃO DINÂMICA: Abaixo da linha principal + margem extra
-                y_base = self.pos_main + main_height + 80  # 80px de margem extra para mais espaço
-                y = y_base + scroll_offset  # Sobe suavemente COM rolagem visível
+                y_base = self.pos_main + main_height + 60  # 60px de margem extra
+                y = y_base + scroll_offset  # Sobe suavemente
                 
                 # Garantir que não saia da tela
                 y = max(y_base, min(y, self.height - preview_img.height - 50))
@@ -831,8 +832,8 @@ class ScrollingKaraokeGenerator:
         print(f"   🎤 Artista: {self.parser.header.get('ARTIST', 'Desconhecido')}")
         print(f"   ⏱️  Duração: {self.duration:.1f}s")
         print(f"   🎮 Encoder: {self.gpu_name} ({self.encoder})")
-        print(f"   🎬 Efeitos: Rolagem CONTÍNUA + Easing (700ms + 250ms antecipação)")
-        print(f"   🌊 Animação: Cubic ease-out com 250px de deslocamento visível")
+        print(f"   🎬 Efeitos: Rolagem Suave + Easing (500ms + 150ms antecipação)")
+        print(f"   🌊 Animação: Cubic ease-out para movimento natural")
         
         lines = self.parser.get_lines()
         print(f"   📝 Linhas: {len(lines)}")
@@ -840,10 +841,9 @@ class ScrollingKaraokeGenerator:
         # Calcular momentos com rolagem
         scroll_moments = self.calculate_scroll_moments(lines)
         print(f"   🎯 Momentos de rolagem: {len(scroll_moments)}")
-        print(f"   ⚡ Sincronização: Transição inicia 950ms ANTES (700ms rolagem + 250ms antecipação)")
-        print(f"   📈 Movimento: 250px de rolagem VISÍVEL em cada frase")
-        print(f"   👁️  A frase fica pronta 250ms antes do áudio iniciar")
-        print(f"   🔄 Efeito contínuo: TODAS as frases sobem suavemente")
+        print(f"   ⚡ Sincronização: Transição inicia 650ms ANTES (500ms rolagem + 150ms antecipação)")
+        print(f"   📈 Movimento: 200px de rolagem com aceleração suave")
+        print(f"   👁️  A frase fica pronta 150ms antes do áudio iniciar")
         
         # Fundo com efeitos
         background_frame = self.text_renderer.create_background_with_effects(self.background_image)
@@ -942,14 +942,14 @@ class ScrollingKaraokeGenerator:
                 print(f"   ⏱️  Tempo total: {elapsed:.1f}s")
                 print(f"   🚀 Velocidade média: {total_frames/elapsed:.1f} fps")
                 print(f"   🎨 Efeitos aplicados:")
-                print(f"      - Rolagem CONTÍNUA com cubic ease-out")
-                print(f"      - Transição antecipada (950ms ANTES)")
-                print(f"      - Frase pronta 250ms antes do áudio")
-                print(f"      - Efeito visível em TODAS as linhas")
-                print(f"      - 250px de deslocamento vertical")
-                print(f"      - Fade progressivo em 3 linhas simultâneas")
-                print(f"      - Linha anterior (cinza, fade-out suave)")
-                print(f"      - Linha atual (branco, fade-in destaque)")
+                print(f"      - Rolagem suave com cubic ease-out")
+                print(f"      - Transição antecipada (650ms ANTES)")
+                print(f"      - Frase pronta 150ms antes do áudio")
+                print(f"      - Sincronização perfeita para leitura")
+                print(f"      - 200px de deslocamento vertical")
+                print(f"      - Fade progressivo em 3 linhas")
+                print(f"      - Linha anterior (cinza, fade-out)")
+                print(f"      - Linha atual (branco, fade-in)")
                 print(f"      - Próxima linha (cinza escuro, preview)")
             else:
                 print(f"\n❌ Arquivo não foi criado!")

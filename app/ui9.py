@@ -449,12 +449,11 @@ class MainApp:
         return nome
 
     def verificar_se_video_ja_existe(self, nome_arquivo, pasta_karaoke):
-        """Verifica se o vídeo já existe na pasta karaoke (em qualquer subpasta) OU na pasta Output"""
+        """Verifica se o vídeo já existe na pasta karaoke (em qualquer subpasta)"""
         try:
             # Normalizar o nome do arquivo
             nome_normalizado = self.normalizar_nome_arquivo(nome_arquivo)
             
-            # Verificar na pasta Karaoke e subpastas
             for root_dir, _, files in os.walk(pasta_karaoke):
                 for arquivo in files:
                     # Verificar apenas arquivos de vídeo
@@ -470,23 +469,6 @@ class MainApp:
                         nome_arquivo_normalizado in nome_normalizado):
                         
                         return os.path.join(root_dir, arquivo)
-            
-            # Verificar também na pasta Output
-            pasta_output = os.path.join(BASE_DIR, "Output")
-            if os.path.exists(pasta_output):
-                for arquivo in os.listdir(pasta_output):
-                    if not arquivo.lower().endswith(('.mp4', '.avi', '.mkv', '.mov')):
-                        continue
-                    
-                    nome_sem_extensao = os.path.splitext(arquivo)[0]
-                    nome_arquivo_normalizado = self.normalizar_nome_arquivo(nome_sem_extensao)
-                    
-                    # Múltiplas estratégias de comparação
-                    if (nome_normalizado == nome_arquivo_normalizado or
-                        nome_normalizado in nome_arquivo_normalizado or
-                        nome_arquivo_normalizado in nome_normalizado):
-                        
-                        return os.path.join(pasta_output, arquivo)
             
             return None
             

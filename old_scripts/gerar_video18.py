@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Gerador de Vídeo Karaokê ULTRA RÁPIDO - Com Efeito de Rolagem
-Versão com sincronização corrigida (sem atraso)
+Gerador de Vídeo Karaokê ULTRA RÁPIDO
 """
 
 import re
@@ -52,6 +51,7 @@ def find_ffmpeg_tools():
 
 def get_custom_fonts(project_root):
     """Carrega fontes personalizadas da pasta fonts com verificação detalhada"""
+    # CORREÇÃO: fonts está dentro de assets/fonts
     fonts_dir = os.path.join(project_root, "assets", "fonts")
     fonts_dir = os.path.abspath(fonts_dir)
     
@@ -72,15 +72,23 @@ def get_custom_fonts(project_root):
         else:
             print(f"   ❌ Não encontrada: {path}")
     
+    # Verificar se a pasta fonts existe
     if not os.path.exists(fonts_dir):
         print(f"   ⚠️  Pasta fonts não existe: {fonts_dir}")
         print(f"   💡 Crie a pasta 'fonts' em assets/fonts do projeto")
+        print(f"   💡 Baixe as fontes recomendadas:")
+        print(f"      - PlayfairDisplay-Bold.ttf (Google Fonts)")
+        print(f"      - Lato-Light.ttf (Google Fonts)")
+        print(f"      - Poppins-Bold.ttf (Google Fonts)")
+        print(f"      - Poppins-Regular.ttf (Google Fonts)")
     
+    # Listar arquivos na pasta fonts se existir
     if os.path.exists(fonts_dir):
         print(f"   📁 Arquivos na pasta fonts:")
         for arquivo in os.listdir(fonts_dir):
             print(f"      - {arquivo}")
     
+    # Fallbacks do sistema se necessário
     if not available_fonts:
         print("⚠️  Usando fontes do sistema como fallback")
         system = platform.system().lower()
@@ -91,6 +99,7 @@ def get_custom_fonts(project_root):
                 'poppins_bold': r"C:\Windows\Fonts\arialbd.ttf",
                 'poppins_regular': r"C:\Windows\Fonts\arial.ttf"
             }
+            print("   📝 Fallback: Georgia, Segoe UI, Arial Bold e Arial")
     
     return available_fonts
 
@@ -166,6 +175,7 @@ def desenhar_ondas(draw_obj, largura, altura, cor_onda, num_ondas=4, intensidade
         offset_y = altura / num_ondas * i + (altura / (num_ondas * 2))
         cor_onda_rgba = cor_onda + (int(255 * intensidade),) 
         pontos = []
+        # Menos pontos para velocidade (a cada 4 pixels)
         for x in range(0, largura + 1, 4):
             y = int(offset_y + amplitude * math.sin(frequencia * x + i * 0.5))
             pontos.append((x, y))
@@ -236,36 +246,37 @@ class UltraStarParser:
         
         return lines
 
-# ==================== RENDERIZADOR COM ROLAGEM ====================
+# ==================== RENDERIZADOR ULTRA RÁPIDO ====================
 
-class ScrollingTextRenderer:
+class UltraFastTextRenderer:
     def __init__(self, width=1920, height=1080, project_root="."):
         self.width = width
         self.height = height
         self.project_root = project_root
         self.fonts = self.load_custom_fonts()
+        
+        # Cache para frames gerados
         self.frame_cache = {}
         
     def load_custom_fonts(self):
-        """Carrega fontes personalizadas"""
+        """Carrega fontes personalizadas com verificação detalhada"""
         font_files = get_custom_fonts(self.project_root)
         fonts = {}
         
         print("🔤 Carregando fontes personalizadas...")
         
         sizes = {
-            'title': 120,
-            'artist': 70,
-            'main': 85,      # Linha atual (destaque)
-            'previous': 68,  # Linha anterior (cinza acima)
-            'preview': 68    # Próxima linha (cinza abaixo)
+            'title': 120,     # Playfair Display - Elegante para título (MAIOR)
+            'artist': 70,     # Lato Light - Leve e moderna para artista (MAIOR)
+            'main': 85,       # Poppins Bold - Forte e legível para letra atual
+            'preview': 68     # Poppins Regular - Suave para próxima linha
         }
         
+        # Mapeamento de fontes para cada tamanho
         font_mapping = {
             'title': 'playfair_bold',
             'artist': 'lato_light',
             'main': 'poppins_bold',
-            'previous': 'poppins_regular',
             'preview': 'poppins_regular'
         }
         
@@ -279,8 +290,10 @@ class ScrollingTextRenderer:
                     font_display_name = os.path.basename(font_files[preferred_font]).replace('.ttf', '')
                     print(f"   ✅ {size_name}: {font_display_name} ({size}px)")
                 else:
+                    # Fallback para fonte do sistema
                     print(f"   ⚠️  {size_name}: {preferred_font} não encontrada, usando fallback")
                     
+                    # Tentar fontes do sistema
                     system_fonts = []
                     if platform.system().lower() == 'windows':
                         if size_name == 'title':
@@ -289,7 +302,7 @@ class ScrollingTextRenderer:
                             system_fonts = [r"C:\Windows\Fonts\segoeui.ttf", r"C:\Windows\Fonts\calibri.ttf"]
                         elif size_name == 'main':
                             system_fonts = [r"C:\Windows\Fonts\arialbd.ttf", r"C:\Windows\Fonts\verdanab.ttf"]
-                        else:
+                        else:  # preview
                             system_fonts = [r"C:\Windows\Fonts\arial.ttf", r"C:\Windows\Fonts\calibri.ttf"]
                     
                     font_loaded = False
@@ -311,10 +324,15 @@ class ScrollingTextRenderer:
                 print(f"   ❌ Erro ao carregar {size_name}: {str(e)[:50]}...")
                 fonts[size_name] = ImageFont.load_default()
         
+        print("   💡 Fontes recomendadas disponíveis no Google Fonts:")
+        print("      https://fonts.google.com/specimen/Playfair+Display")
+        print("      https://fonts.google.com/specimen/Lato")
+        print("      https://fonts.google.com/specimen/Poppins")
+        
         return fonts
     
     def wrap_text(self, text, font, max_width):
-        """Quebra texto inteligente"""
+        """Quebra texto inteligente - NUNCA corta palavras no meio"""
         words = text.split()
         lines = []
         current_line = []
@@ -331,15 +349,19 @@ class ScrollingTextRenderer:
                 text_width, _ = temp_draw.textsize(test_line, font=font)
             
             if text_width <= max_width:
+                # Palavra cabe na linha atual
                 current_line.append(word)
             else:
+                # Palavra não cabe - finaliza linha atual e começa nova
                 if current_line:
                     lines.append(' '.join(current_line))
                     current_line = [word]
                 else:
+                    # Se uma única palavra é maior que max_width, coloca ela mesmo assim
                     lines.append(word)
                     current_line = []
         
+        # Adiciona última linha se houver
         if current_line:
             lines.append(' '.join(current_line))
         
@@ -347,7 +369,9 @@ class ScrollingTextRenderer:
     
     def create_text_enhanced(self, text, font_type='main', color=(255, 255, 255), 
                            stroke_width=4, stroke_color=(0, 0, 0), max_width=None):
-        """Renderização com cache"""
+        """Renderização com cache e posicionamento corrigido"""
+        
+        # Criar chave de cache
         cache_key = f"{text}_{font_type}_{color}_{stroke_width}_{stroke_color}_{max_width}"
         
         if cache_key in self.frame_cache:
@@ -359,11 +383,11 @@ class ScrollingTextRenderer:
         
         if max_width is None:
             if font_type == 'title':
-                max_width = self.width - 100
+                max_width = self.width - 100  # Mais espaço para título
             elif font_type == 'artist':
-                max_width = self.width - 200
+                max_width = self.width - 200  # Mais espaço para artista
             else:
-                max_width = self.width - 100
+                max_width = self.width - 100  # Mais espaço para letras
         
         text_lines = self.wrap_text(text, font, max_width)
         
@@ -387,7 +411,8 @@ class ScrollingTextRenderer:
             line_widths.append(line_width)
             line_heights.append(line_height)
         
-        margin_extra = 60
+        # Dimensões com margem extra para evitar corte
+        margin_extra = 60  # Margem extra maior para texto grande
         total_width = max(line_widths) + (stroke_width * 2) + margin_extra
         total_height = sum(line_heights) + (len(text_lines) - 1) * 20 + (stroke_width * 2) + margin_extra
         
@@ -402,6 +427,7 @@ class ScrollingTextRenderer:
             
             x = (total_width - line_width) // 2
             
+            # Contorno otimizado
             if stroke_width > 0:
                 for dx in range(-stroke_width, stroke_width + 1, 2):
                     for dy in range(-stroke_width, stroke_width + 1, 2):
@@ -409,28 +435,32 @@ class ScrollingTextRenderer:
                             draw.text((x + dx, y_offset + dy), line, font=font, fill=stroke_color)
             
             draw.text((x, y_offset), line, font=font, fill=color)
-            y_offset += line_height + 20
+            y_offset += line_height + 20  # Espaçamento maior entre linhas
         
+        # Armazenar no cache
         self.frame_cache[cache_key] = img
         
         return img
     
     def create_background_with_effects(self, background_image=None):
-        """Cria fundo com efeitos"""
+        """Cria fundo com efeitos e tonalidade preta"""
         print("📸 Processando fundo com efeitos visuais...")
         
+        # CORREÇÃO: Converter project_root para Path se for string
         project_root = Path(self.project_root) if isinstance(self.project_root, str) else self.project_root
         
         final_background_path = None
         
         if background_image:
+            # Se foi passado um background, resolver o caminho
             background_path = Path(background_image)
             
+            # Se for apenas nome do arquivo (sem caminho), buscar com prioridade
             if not background_path.is_absolute() and len(background_path.parts) == 1:
                 possible_paths = [
-                    project_root / background_path,
-                    project_root / "assets" / "background" / background_path,
-                    project_root / "assets" / "background" / "__artist" / background_path
+                    project_root / background_path,  # 1ª prioridade: Raiz do projeto
+                    project_root / "assets" / "background" / background_path,  # 2ª prioridade
+                    project_root / "assets" / "background" / "__artist" / background_path  # 3ª prioridade
                 ]
                 for path in possible_paths:
                     if path.exists():
@@ -441,11 +471,13 @@ class ScrollingTextRenderer:
                 if not final_background_path:
                     print(f"   ❌ Background não encontrado: {background_path}")
             else:
+                # Se é caminho completo, usar diretamente
                 if background_path.exists():
                     final_background_path = str(background_path)
                 else:
                     print(f"   ❌ Background não encontrado: {background_path}")
         else:
+            # CORREÇÃO: Usar Path para evitar erro de divisão de string
             default_path = project_root / "assets" / "background" / "bg.jpg"
             if default_path.exists():
                 final_background_path = str(default_path)
@@ -453,17 +485,23 @@ class ScrollingTextRenderer:
             else:
                 print(f"   ⚠️  Background padrão: bg.jpg não encontrado em {default_path}")
         
+        # Criar fundo base
         fundo_base = Image.new("RGB", (self.width, self.height), color=(0, 0, 0))
         draw_fundo_base = ImageDraw.Draw(fundo_base)
 
         if final_background_path and os.path.exists(final_background_path):
             try:
+                # Carregar imagem de fundo
                 img_fundo_artista = Image.open(final_background_path).convert("RGB")
                 img_fundo_artista = img_fundo_artista.resize((self.width, self.height), Image.Resampling.LANCZOS)
+                
+                # Manter cores originais (não converter para cinza)
                 fundo_base = img_fundo_artista
                 print(f"   ✅ Imagem de fundo carregada: {os.path.basename(final_background_path)}")
+                
             except Exception as e:
                 print(f"   ⚠️  Erro ao carregar imagem: {e}. Usando fundo gradiente.")
+                # Fundo gradiente padrão
                 cor_topo = (20, 20, 20)
                 cor_base = (0, 0, 0)
                 for y in range(self.height):
@@ -472,6 +510,7 @@ class ScrollingTextRenderer:
                     b = int(cor_topo[2] + (cor_base[2] - cor_topo[2]) * (y / self.height))
                     draw_fundo_base.line([(0, y), (self.width, y)], fill=(r, g, b))
         else:
+            # Fundo gradiente padrão
             cor_topo = (20, 20, 20)
             cor_base = (0, 0, 0)
             for y in range(self.height):
@@ -481,48 +520,64 @@ class ScrollingTextRenderer:
                 draw_fundo_base.line([(0, y), (self.width, y)], fill=(r, g, b))
             print("   ✅ Fundo gradiente padrão criado")
 
+        # Camada de ondas (mantida)
         ondas_layer = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
         draw_ondas = ImageDraw.Draw(ondas_layer)
         desenhar_ondas(draw_ondas, self.width, self.height, cor_onda=(50, 50, 50), num_ondas=4, intensidade=0.1)
 
+        # Camada preta semi-transparente (permite ver a imagem por trás)
+        # Alpha 200 = deixa passar ~22% da imagem original
         camada_preta = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 200))
         
+        # Combinar todas as camadas
         img = fundo_base.copy()
         img.paste(ondas_layer, (0, 0), ondas_layer)
         img.paste(camada_preta, (0, 0), camada_preta)
 
-        print("   ✅ Efeitos visuais aplicados com rolagem de texto")
+        print("   ✅ Efeitos visuais aplicados:")
+        print("      - Imagem de fundo colorida mantida")
+        print("      - Ondas translúcidas (4 ondas, intensidade 0.1)")
+        print("      - Camada preta semi-transparente (alpha 200)")
+        print("      - Permite ver ~22% da imagem original por trás")
         
         return img
 
-# ==================== GERADOR COM ROLAGEM ====================
+# ==================== GERADOR ULTRA RÁPIDO ====================
 
-class ScrollingKaraokeGenerator:
+class UltraFastKaraokeGenerator:
     def __init__(self, ultrastar_file, background_image=None, audio_file=None, use_gpu=True):
-        script_dir = Path(__file__).parent
-        project_root = script_dir.parent
+        # ALTERADO: Resolver caminho base do projeto considerando nova estrutura
+        script_dir = Path(__file__).parent  # Pasta scripts
+        project_root = script_dir.parent    # Pasta raiz do projeto
         
         self.parser = UltraStarParser(ultrastar_file)
         self.background_image = background_image
         
+        # Gerar nome do arquivo de saída baseado em ARTIST e TITLE
         artist = self.parser.header.get('ARTIST', 'Artista_Desconhecido')
         title = self.parser.header.get('TITLE', 'Musica_Desconhecida')
         
+        # Limpar caracteres inválidos para nome de arquivo
         def sanitize_filename(name):
+            # Remove ou substitui caracteres inválidos no Windows/Linux
             invalid_chars = '<>:"/\\|?*'
             for char in invalid_chars:
                 name = name.replace(char, '')
-            name = ' '.join(name.split())
+            # Remove espaços extras e substitui espaços por underscores
+            name = ' '.join(name.split())  # Remove espaços múltiplos
             return name.strip()
         
         artist_clean = sanitize_filename(artist)
         title_clean = sanitize_filename(title)
         
+        # ALTERADO: Criar pasta Output e salvar vídeo lá
         output_dir = project_root / "Output"
-        output_dir.mkdir(exist_ok=True)
+        output_dir.mkdir(exist_ok=True)  # Cria a pasta se não existir
         
         self.output_file = str(output_dir / f"{artist_clean} - {title_clean}.mp4")
-        self.project_root = str(project_root)
+        
+        # ALTERADO: Definir project_root correto
+        self.project_root = str(project_root)  # Agora aponta para a raiz do projeto
         
         print(f"📁 Diretório do projeto: {self.project_root}")
         print(f"📁 Pasta de saída: {output_dir}")
@@ -546,19 +601,27 @@ class ScrollingKaraokeGenerator:
             self.encoder, self.gpu_name = 'libx264', 'CPU'
             self.encoder_params = ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28']
         
-        self.text_renderer = ScrollingTextRenderer(self.width, self.height, self.project_root)
+        self.text_renderer = UltraFastTextRenderer(self.width, self.height, self.project_root)
         
+        # CORREÇÃO: Lógica melhorada para encontrar o arquivo de áudio
         if audio_file:
+            # Usar o áudio especificado via parâmetro --audio
             self.audio_path = Path(audio_file)
             if not self.audio_path.is_absolute():
+                # Se for caminho relativo, resolver a partir do diretório de trabalho atual
                 self.audio_path = Path.cwd() / audio_file
             print(f"🎵 Usando áudio especificado: {self.audio_path}")
         else:
+            # Usar o áudio do arquivo UltraStar TXT
             audio_filename = self.parser.header.get('MP3', 'audio.mp3')
+            
+            # CORREÇÃO IMPORTANTE: Buscar o áudio na mesma pasta do arquivo TXT
             txt_path = Path(ultrastar_file)
             self.audio_path = txt_path.parent / audio_filename
+            
             print(f"🎵 Usando áudio do TXT: {self.audio_path}")
             
+            # Se não encontrou na mesma pasta do TXT, tentar na raiz do projeto como fallback
             if not self.audio_path.exists():
                 project_root_path = Path(project_root)
                 self.audio_path = project_root_path / audio_filename
@@ -569,10 +632,10 @@ class ScrollingKaraokeGenerator:
         
         self.duration = self.get_audio_duration()
         
-        # Posições para o efeito de rolagem (3 linhas visíveis)
-        self.pos_previous = self.height // 2 - 220  # Linha anterior (acima)
-        self.pos_main = self.height // 2 - 50       # Linha atual (centro - destaque)
-        self.pos_preview = self.height // 2 + 150   # Próxima linha (abaixo)
+        # Posições corrigidas para evitar corte
+        self.pos_title = self.height // 2 - 120  # Mais para cima
+        self.pos_main = self.height // 2 - 50    # Mais para cima
+        self.pos_preview = self.height // 2 + 40 # Mais para cima
         
         self.process = None
         self.encoding_finished = False
@@ -602,111 +665,68 @@ class ScrollingKaraokeGenerator:
             print(f"   ⚠️  Erro: {str(e)[:30]}... Usando duração padrão")
             return 180.0
     
-    def calculate_scroll_moments(self, lines):
-        """Calcula momentos com suporte para 3 linhas (anterior, atual, próxima)"""
-        scroll_moments = []
+    def calculate_unique_frames(self, lines):
+        """Calcula os momentos únicos que precisam de frames diferentes"""
+        unique_moments = []
         
         # Frame inicial (título + artista)
-        scroll_moments.append({
+        unique_moments.append({
             'start_time': 0,
             'end_time': 4,
             'type': 'title',
             'title': self.parser.header.get('TITLE', 'Música'),
-            'artist': self.parser.header.get('ARTIST', 'Artista'),
-            'transition_progress': 1.0
+            'artist': self.parser.header.get('ARTIST', 'Artista')
         })
         
-        # Processar cada linha com contexto (anterior, atual, próxima)
+        # Frames para cada mudança de linha
         for i, line_notes in enumerate(lines):
             if not line_notes:
                 continue
-            
+                
             line_start = self.parser.beat_to_seconds(line_notes[0]['beat'])
             line_end = self.parser.beat_to_seconds(line_notes[-1]['beat'] + line_notes[-1]['duration'])
             
-            # Linha anterior
-            previous_line = None
-            if i > 0:
-                prev_notes = lines[i - 1]
-                if prev_notes:
-                    previous_line = ' '.join([note['text'] for note in prev_notes]).strip()
-            
-            # Linha atual
             current_line = ' '.join([note['text'] for note in line_notes]).strip()
-            
-            # Próxima linha
             next_line = None
-            next_line_start = None
+            
             if i + 1 < len(lines):
-                next_notes = lines[i + 1]
-                if next_notes:
-                    next_line = ' '.join([note['text'] for note in next_notes]).strip()
-                    next_line_start = self.parser.beat_to_seconds(next_notes[0]['beat'])
+                next_line_notes = lines[i + 1]
+                if next_line_notes:
+                    next_line = ' '.join([note['text'] for note in next_line_notes]).strip()
             
-            # Calcular fim do momento
-            if next_line_start is not None:
-                moment_end = next_line_start
-            else:
-                moment_end = line_end + 0.5
-            
-            # CORREÇÃO: Iniciar transição ANTES para terminar no tempo certo
-            # A transição de rolagem precisa terminar LEVEMENTE antes do áudio começar
-            transition_duration = 0.7  # 700ms para rolagem bem visível e suave
-            anticipation = 0.25  # 250ms de antecipação extra (a linha fica pronta antes)
-            transition_start = max(4, line_start - transition_duration - anticipation)
-            
-            scroll_moments.append({
-                'start_time': transition_start,
-                'end_time': moment_end,
+            unique_moments.append({
+                'start_time': max(4, line_start),
+                'end_time': line_end + 2,
                 'type': 'lyrics',
-                'previous_line': previous_line,
                 'current_line': current_line,
-                'next_line': next_line,
-                'transition_duration': transition_duration,
-                'line_actual_start': line_start  # Momento real da linha
+                'next_line': next_line
             })
         
         # Frame final (sem texto)
-        if scroll_moments:
-            last_end = scroll_moments[-1]['end_time']
+        if unique_moments:
+            last_end = unique_moments[-1]['end_time']
             if last_end < self.duration:
-                scroll_moments.append({
+                unique_moments.append({
                     'start_time': last_end,
                     'end_time': self.duration,
-                    'type': 'empty',
-                    'transition_progress': 1.0
+                    'type': 'empty'
                 })
         
-        return scroll_moments
+        return unique_moments
     
-    def apply_fade_transition(self, img, alpha_value):
-        """Aplica fade-in/fade-out em uma imagem"""
-        if img is None:
-            return None
-        
-        # Criar cópia com alpha ajustado
-        img_copy = img.copy()
-        
-        # Ajustar transparência
-        alpha = img_copy.split()[3] if img_copy.mode == 'RGBA' else None
-        if alpha:
-            alpha = alpha.point(lambda p: int(p * alpha_value))
-            img_copy.putalpha(alpha)
-        
-        return img_copy
-    
-    def create_scrolling_frame(self, moment, background_frame, timestamp):
-        """Cria frame com efeito de rolagem INVERTIDO (de baixo para cima)"""
+    def create_unique_frame(self, moment, background_frame):
+        """Cria um frame único baseado no momento com posicionamento corrigido"""
         frame = background_frame.copy()
         
         if moment['type'] == 'title':
-            # Título e artista (sem mudanças)
+            # Título e artista
             title_img = self.text_renderer.create_text_enhanced(
                 moment['title'], 'title', color=(255, 255, 255), stroke_width=5
             )
             if title_img:
                 x = (self.width - title_img.width) // 2
-                y = max(50, min(self.height // 2 - 120, self.height - title_img.height - 100))
+                # Garantir que não saia da tela
+                y = max(50, min(self.pos_title, self.height - title_img.height - 100))
                 frame.paste(title_img, (x, y), title_img)
             
             artist_img = self.text_renderer.create_text_enhanced(
@@ -714,92 +734,43 @@ class ScrollingKaraokeGenerator:
             )
             if artist_img:
                 x = (self.width - artist_img.width) // 2
-                y = max(150, min(self.height // 2 - 120 + (title_img.height if title_img else 0) + 30, 
+                y = max(150, min(self.pos_title + (title_img.height if title_img else 0) + 30, 
                                self.height - artist_img.height - 50))
                 frame.paste(artist_img, (x, y), artist_img)
         
         elif moment['type'] == 'lyrics':
-            # CORREÇÃO: Calcular progresso baseado no início REAL da transição
-            transition_duration = moment.get('transition_duration', 0.5)
-            line_actual_start = moment.get('line_actual_start', moment['start_time'])
-            
-            # Progresso: 0 = início da transição (tudo embaixo), 1 = transição completa
-            time_in_transition = timestamp - moment['start_time']
-            transition_progress = min(1.0, time_in_transition / transition_duration)
-            
-            # EFEITO DE ROLAGEM CONTÍNUO: As linhas sobem gradualmente em TODAS as frases
-            # Durante a transição (0 a transition_duration): movimento de rolagem
-            # Após transição: linha fica estável na posição final
-            
-            # Usando função de easing suave (ease-out) para movimento mais natural
-            ease_progress = 1 - math.pow(1 - transition_progress, 3)  # Cubic ease-out
-            scroll_offset = int((1 - ease_progress) * 250)  # Sobe 250px para ser mais visível
-            
-            # PRÉ-RENDERIZAR todas as imagens para calcular alturas
-            previous_img = None
-            main_img = None
-            preview_img = None
-            
-            if moment['previous_line']:
-                previous_img = self.text_renderer.create_text_enhanced(
-                    moment['previous_line'], 'previous', 
-                    color=(140, 140, 140), stroke_width=3
-                )
-            
+            # Linha atual
             if moment['current_line']:
                 main_img = self.text_renderer.create_text_enhanced(
-                    moment['current_line'], 'main', 
-                    color=(255, 255, 255), stroke_width=5
+                    moment['current_line'], 'main', color=(255, 255, 255), stroke_width=5
                 )
+                if main_img:
+                    x = (self.width - main_img.width) // 2
+                    # Garantir que não saia da tela
+                    y = max(200, min(self.pos_main, self.height - main_img.height - 150))
+                    frame.paste(main_img, (x, y), main_img)
             
+            # Próxima linha
             if moment['next_line']:
                 preview_img = self.text_renderer.create_text_enhanced(
-                    moment['next_line'], 'preview', 
-                    color=(120, 120, 120), stroke_width=3
+                    moment['next_line'], 'preview', color=(170, 170, 170), stroke_width=3
                 )
-            
-            # CALCULAR POSIÇÕES COM ESPAÇAMENTO DINÂMICO
-            # Altura da linha principal (pode ocupar múltiplas linhas)
-            main_height = main_img.height if main_img else 0
-            
-            # LINHA ANTERIOR (acima, cinza claro, fade-out progressivo durante rolagem)
-            if previous_img:
-                # Fade-out suave e progressivo quando nova linha entra
-                # Mantém visível durante mais tempo para continuidade visual
-                alpha_previous = max(0.4, 1.0 - (transition_progress * 0.6))
-                previous_img = self.apply_fade_transition(previous_img, alpha_previous)
-                
-                x = (self.width - previous_img.width) // 2
-                y = self.pos_previous + scroll_offset  # Sobe suavemente COM rolagem visível
-                y = max(50, min(y, self.height - previous_img.height - 50))
-                frame.paste(previous_img, (x, y), previous_img)
-            
-            # LINHA ATUAL (centro, branca, destaque MÁXIMO com fade-in suave durante rolagem)
-            if main_img:
-                # Fade-in suave e gradual durante toda a transição
-                alpha_main = min(1.0, transition_progress * 1.8)
-                main_img = self.apply_fade_transition(main_img, alpha_main)
-                
-                x = (self.width - main_img.width) // 2
-                y = self.pos_main + scroll_offset  # Sobe suavemente COM rolagem visível
-                y = max(150, min(y, self.height - main_img.height - 150))
-                frame.paste(main_img, (x, y), main_img)
-            
-            # PRÓXIMA LINHA (abaixo, cinza escuro, preview com fade-in durante rolagem)
-            if preview_img:
-                # Fade-in progressivo para dar preview da próxima linha
-                alpha_preview = min(0.85, transition_progress * 0.85)
-                preview_img = self.apply_fade_transition(preview_img, alpha_preview)
-                
-                x = (self.width - preview_img.width) // 2
-                
-                # POSIÇÃO DINÂMICA: Abaixo da linha principal + margem extra
-                y_base = self.pos_main + main_height + 80  # 80px de margem extra para mais espaço
-                y = y_base + scroll_offset  # Sobe suavemente COM rolagem visível
-                
-                # Garantir que não saia da tela
-                y = max(y_base, min(y, self.height - preview_img.height - 50))
-                frame.paste(preview_img, (x, y), preview_img)
+                if preview_img:
+                    x = (self.width - preview_img.width) // 2
+                    y = self.pos_preview
+                    
+                    # Ajustar posição baseada na linha atual
+                    if moment['current_line']:
+                        main_img = self.text_renderer.create_text_enhanced(
+                            moment['current_line'], 'main', color=(255, 255, 255), stroke_width=5
+                        )
+                        if main_img:
+                            y = max(400, min(self.pos_main + main_img.height + 40, 
+                                           self.height - preview_img.height - 50))
+                    
+                    # Garantir que não saia da tela
+                    y = max(400, min(y, self.height - preview_img.height - 50))
+                    frame.paste(preview_img, (x, y), preview_img)
         
         return frame
     
@@ -823,36 +794,42 @@ class ScrollingKaraokeGenerator:
         monitor_thread.start()
         return monitor_thread
     
-    def generate_video_with_scroll(self):
-        """Geração com efeito de rolagem"""
-        print(f"🚀 Gerador de Karaokê com Efeito de Rolagem - SINCRONIZADO")
+    def generate_video_ultra_fast(self):
+        """Geração ultra rápida com frames únicos"""
+        print(f"🚀 Gerador de Karaokê ULTRA RÁPIDO - Com Fontes Bonitas")
         print(f"   📺 Resolução: {self.width}x{self.height} @ {self.fps}fps")
         print(f"   🎵 Música: {self.parser.header.get('TITLE', 'Desconhecida')}")
         print(f"   🎤 Artista: {self.parser.header.get('ARTIST', 'Desconhecido')}")
         print(f"   ⏱️  Duração: {self.duration:.1f}s")
         print(f"   🎮 Encoder: {self.gpu_name} ({self.encoder})")
-        print(f"   🎬 Efeitos: Rolagem CONTÍNUA + Easing (700ms + 250ms antecipação)")
-        print(f"   🌊 Animação: Cubic ease-out com 250px de deslocamento visível")
         
         lines = self.parser.get_lines()
         print(f"   📝 Linhas: {len(lines)}")
         
-        # Calcular momentos com rolagem
-        scroll_moments = self.calculate_scroll_moments(lines)
-        print(f"   🎯 Momentos de rolagem: {len(scroll_moments)}")
-        print(f"   ⚡ Sincronização: Transição inicia 950ms ANTES (700ms rolagem + 250ms antecipação)")
-        print(f"   📈 Movimento: 250px de rolagem VISÍVEL em cada frase")
-        print(f"   👁️  A frase fica pronta 250ms antes do áudio iniciar")
-        print(f"   🔄 Efeito contínuo: TODAS as frases sobem suavemente")
+        # Calcular momentos únicos
+        unique_moments = self.calculate_unique_frames(lines)
+        print(f"   🎯 Frames únicos: {len(unique_moments)} (vs {int(self.duration * self.fps)} total)")
+        print(f"   ⚡ Otimização: {((int(self.duration * self.fps) - len(unique_moments)) / int(self.duration * self.fps) * 100):.1f}% menos frames")
         
         # Fundo com efeitos
         background_frame = self.text_renderer.create_background_with_effects(self.background_image)
         
+        # Gerar frames únicos
+        print(f"\n🎨 Gerando frames únicos...")
+        unique_frames = {}
+        
+        for i, moment in enumerate(unique_moments):
+            frame = self.create_unique_frame(moment, background_frame)
+            unique_frames[i] = np.array(frame)
+            print(f"\r   Frame {i+1}/{len(unique_moments)} gerado", end='', flush=True)
+        
+        print(f"\n   ✅ {len(unique_frames)} frames únicos gerados")
+        
         total_frames = int(self.duration * self.fps)
-        print(f"   🎬 Total de frames: {total_frames}")
+        print(f"   🎬 Total de frames a enviar: {total_frames}")
         
         # Comando FFmpeg
-        print(f"\n🎬 Preparando encoding com transições antecipadas...")
+        print(f"\n🎬 Preparando encoding...")
         
         base_cmd = [
             self.ffmpeg_path, '-y', 
@@ -871,51 +848,47 @@ class ScrollingKaraokeGenerator:
         ]
         
         try:
-            print(f"🚀 Iniciando encoding com {self.gpu_name}...")
+            print(f"🚀 Iniciando encoding ultra rápido com {self.gpu_name}...")
             self.process = subprocess.Popen(video_cmd, stdin=subprocess.PIPE, 
                                           stderr=subprocess.PIPE, stdout=subprocess.PIPE,
                                           bufsize=2*1024*1024)
             
             monitor_thread = self.monitor_ffmpeg_optimized(self.process)
             
-            print(f"📡 Gerando frames com rolagem sincronizada...")
+            print(f"📡 Enviando frames otimizados...")
             self.start_time = time.time()
             
-            # Gerar e enviar frames em tempo real
+            # Enviar frames reutilizando os únicos
             for frame_num in range(total_frames):
                 timestamp = frame_num / self.fps
                 
-                # Encontrar momento atual
-                current_moment = None
-                for moment in scroll_moments:
-                    if moment['start_time'] <= timestamp < moment['end_time']:
-                        current_moment = moment
+                # Encontrar qual frame único usar
+                current_frame_data = None
+                for i, moment in enumerate(unique_moments):
+                    if moment['start_time'] <= timestamp <= moment['end_time']:
+                        current_frame_data = unique_frames[i]
                         break
                 
-                # Se não encontrou, usar o último
-                if current_moment is None and scroll_moments:
-                    current_moment = scroll_moments[-1]
+                # Se não encontrou, usar o último frame disponível
+                if current_frame_data is None and unique_frames:
+                    current_frame_data = unique_frames[len(unique_frames) - 1]
                 
-                # Gerar frame com rolagem
-                if current_moment:
-                    frame = self.create_scrolling_frame(current_moment, background_frame, timestamp)
-                    frame_data = np.array(frame)
-                    
+                if current_frame_data is not None:
                     try:
-                        self.process.stdin.write(frame_data.tobytes())
+                        self.process.stdin.write(current_frame_data.tobytes())
                         if frame_num % 100 == 0:
                             self.process.stdin.flush()
                     except (BrokenPipeError, OSError):
                         print(f"\n💥 Conexão perdida no frame {frame_num}")
                         break
                 
-                # Progresso
-                if frame_num % 50 == 0 or frame_num == total_frames - 1:
+                # Progresso otimizado
+                if frame_num % 100 == 0 or frame_num == total_frames - 1:
                     percentage = (frame_num / total_frames) * 100
                     elapsed = time.time() - self.start_time
                     fps_current = frame_num / elapsed if elapsed > 0 else 0
                     eta_seconds = (total_frames - frame_num) / fps_current if fps_current > 0 else 0
-                    print(f"\rRolagem: {percentage:.1f}% | {fps_current:.1f}fps | ETA: {int(eta_seconds//60):02d}:{int(eta_seconds%60):02d}", end='', flush=True)
+                    print(f"\rEnviando: {percentage:.1f}% | {fps_current:.1f}fps | ETA: {int(eta_seconds//60):02d}:{int(eta_seconds%60):02d}", end='', flush=True)
             
             print(f"\n📤 Finalizando...")
             
@@ -936,21 +909,15 @@ class ScrollingKaraokeGenerator:
             
             if os.path.exists(self.output_file):
                 file_size = os.path.getsize(self.output_file) / (1024*1024)
-                print(f"\n✅ Vídeo com Rolagem Suave e Sincronizada gerado com sucesso!")
+                print(f"\n✅ Vídeo ULTRA RÁPIDO gerado com sucesso!")
                 print(f"   📁 Arquivo: {self.output_file}")
                 print(f"   📏 Tamanho: {file_size:.1f} MB")
                 print(f"   ⏱️  Tempo total: {elapsed:.1f}s")
                 print(f"   🚀 Velocidade média: {total_frames/elapsed:.1f} fps")
-                print(f"   🎨 Efeitos aplicados:")
-                print(f"      - Rolagem CONTÍNUA com cubic ease-out")
-                print(f"      - Transição antecipada (950ms ANTES)")
-                print(f"      - Frase pronta 250ms antes do áudio")
-                print(f"      - Efeito visível em TODAS as linhas")
-                print(f"      - 250px de deslocamento vertical")
-                print(f"      - Fade progressivo em 3 linhas simultâneas")
-                print(f"      - Linha anterior (cinza, fade-out suave)")
-                print(f"      - Linha atual (branco, fade-in destaque)")
-                print(f"      - Próxima linha (cinza escuro, preview)")
+                print(f"   ⚡ Otimização: {len(unique_frames)} frames únicos reutilizados")
+                print(f"   🎨 Efeitos: Imagem colorida + Camada preta + Ondas")
+                print(f"   🔤 Fontes: Playfair Display, Lato, Poppins")
+                print(f"   📐 Posicionamento: Corrigido para evitar cortes")
             else:
                 print(f"\n❌ Arquivo não foi criado!")
                 
@@ -966,10 +933,10 @@ class ScrollingKaraokeGenerator:
 def main():
     import argparse
     
-    parser = argparse.ArgumentParser(description='Gerador de Karaokê com Efeito de Rolagem Sincronizado')
-    parser.add_argument('input', help='Arquivo UltraStar TXT')
+    parser = argparse.ArgumentParser(description='Gerador de Karaokê ULTRA RÁPIDO')
+    parser.add_argument('input', help='Arquivo UltraStar TXT (caminho completo ou nome na raiz)')
     parser.add_argument('--background', '-bg', help='Imagem de fundo')
-    parser.add_argument('--audio', '-a', help='Arquivo de áudio')
+    parser.add_argument('--audio', '-a', help='Arquivo de áudio (substitui o MP3 do TXT)')
     parser.add_argument('--no-gpu', action='store_true', help='Usar CPU')
     
     args = parser.parse_args()
@@ -977,15 +944,16 @@ def main():
     # Resolver caminho do arquivo de input
     input_path = Path(args.input)
     
+    # Se for apenas nome do arquivo (sem caminho), buscar na raiz do projeto
     if not input_path.is_absolute() and len(input_path.parts) == 1:
-        project_root = Path(__file__).parent.parent
+        project_root = Path(__file__).parent.parent  # Sobe da pasta scripts para raiz
         input_path = project_root / input_path
     
     if not input_path.exists():
         print(f"❌ Arquivo não encontrado: {input_path}")
         sys.exit(1)
     
-    # Verificar áudio
+    # Verificar se o arquivo de áudio existe (se foi fornecido)
     if args.audio:
         audio_path = Path(args.audio)
         if not audio_path.is_absolute() and len(audio_path.parts) == 1:
@@ -994,24 +962,22 @@ def main():
         if not audio_path.exists():
             print(f"❌ Arquivo de áudio não encontrado: {audio_path}")
             sys.exit(1)
-        args.audio = str(audio_path)
+        args.audio = str(audio_path)  # Atualizar com caminho resolvido
     
     try:
-        generator = ScrollingKaraokeGenerator(
-            str(input_path),
+        generator = UltraFastKaraokeGenerator(
+            str(input_path),  # Passar caminho resolvido
             background_image=args.background,
             audio_file=args.audio,
             use_gpu=not args.no_gpu
         )
-        generator.generate_video_with_scroll()
+        generator.generate_video_ultra_fast()
         
     except KeyboardInterrupt:
         print(f"\n🛑 Interrompido pelo usuário")
         sys.exit(1)
     except Exception as e:
         print(f"\n❌ Erro: {e}")
-        import traceback
-        traceback.print_exc()
         sys.exit(1)
 
 if __name__ == '__main__':
