@@ -17,7 +17,7 @@ LOG_DIR = os.path.join(BASE_DIR, "..", "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
 # Tipos de extensões de imagem que serão buscadas
-IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp"}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp",".avif"}
 
 def encontrar_imagem_artista(nome_artista):
     """Procura por uma imagem do artista na pasta 'assets/__artist'."""
